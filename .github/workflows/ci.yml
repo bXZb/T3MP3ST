@@ -8,6 +8,12 @@ on:
       - main
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Build and publish image (non-tag dispatches publish latest + sha)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -19,7 +25,7 @@ concurrency:
 jobs:
   test:
     name: Pull request gate
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -147,7 +153,9 @@ jobs:
   docker:
     name: Build and publish container image
     if: >-
-      always() && github.event_name == 'push' &&
+      always() &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && inputs.publish)) &&
       (needs.test.result == 'success' || needs.release.result == 'success')
     needs: [test, release]
     runs-on: ubuntu-latest
